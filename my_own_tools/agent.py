@@ -235,23 +235,26 @@ class Agent(BaseGPTAgent):
     
     def batch_completion(self, prompts: list) -> list:
         print(f"Processing {len(prompts)} prompts in parallel...")
-        results = []
+        results = [None] * len(prompts)  # 初始化一个与prompts长度相同的空列表
         
         # Define a worker function for threading
-        def worker(prompt):
-            return self.chat_completion(prompt, max_completion_tokens=1024)
+        def worker(index, prompt):
+            result = self.chat_completion(prompt, max_completion_tokens=2048)
+            results[index] = result
         
         # Use ThreadPoolExecutor for concurrent requests
         with concurrent.futures.ThreadPoolExecutor() as executor:
             # Map each prompt to the worker function
 
-            futures = {executor.submit(worker, prompt): prompt for prompt in prompts}
+            futures = {executor.submit(worker, idx, prompt): idx for idx, prompt in enumerate(prompts)}
             
             for future in concurrent.futures.as_completed(futures):
                 try:
-                    results.append(future.result())
+                    future.result()  # 获取任务结果，如果抛出异常会被捕获
                 except Exception as exc:
                     print(f'Generated an exception: {exc}')
-                    results.append(None)  # Append None in case of exception
+                    idx = futures[future]
+                    results[idx] = None
         
         return results
+
