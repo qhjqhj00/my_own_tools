@@ -219,7 +219,7 @@ class Agent(BaseGPTAgent):
         print(f"You are using {self.model} from {source}")
         
     @except_retry_dec()
-    def chat_completion(self, prompt: str, max_completion_tokens: int=512) -> str:
+    def chat_completion(self, prompt: str, max_completion_tokens: int=512, stream=False) -> str:
         _completion = self.client.chat.completions.create(
                 messages=[
                     {
@@ -229,10 +229,32 @@ class Agent(BaseGPTAgent):
                 ],
                 temperature=self.temperature,
                 model=self.model,
-                max_tokens=max_completion_tokens
+                max_tokens=max_completion_tokens,
+                stream=stream
             )
         return _completion.choices[0].message.content
     
+    def stream_completion(self, prompt: str, max_completion_tokens: int=512):
+        """Stream the chat completion response token by token"""
+        stream = self.client.chat.completions.create(
+            messages=[
+                {
+                    "role": "user", 
+                    "content": prompt,
+                }
+            ],
+            temperature=self.temperature,
+            model=self.model,
+            max_tokens=max_completion_tokens,
+            stream=True
+        )
+        
+        response = ""
+        for chunk in stream:
+            if chunk.choices[0].delta.content is not None:
+                response += chunk.choices[0].delta.content
+                yield chunk.choices[0].delta.content
+
     def batch_completion(self, prompts: list) -> list:
         print(f"Processing {len(prompts)} prompts in parallel...")
         results = []
