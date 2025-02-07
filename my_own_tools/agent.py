@@ -210,7 +210,7 @@ class Agent(BaseGPTAgent):
                     # This is the default and can be omitted
                     api_key=api_dict[source]["api_key"],
                 )
-        elif source in ["deepseek", "openrouter"]:
+        elif source in ["deepseek", "deepseek-backup", "openrouter"]:
             self.client = OpenAI(
                     # This is the default and can be omitted
                     base_url=api_dict[source]["base_url"],
