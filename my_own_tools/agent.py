@@ -192,7 +192,7 @@ class BaseGPTAgent(ABC):
 
 class Agent(BaseGPTAgent):
     def __init__(
-        self, model, source, api_dict, temperature: float = 1.0):
+        self, model, source, api_dict: dict = None, base_url: str = None, temperature: float = 1.0):
         self.model = model
         self.temperature = temperature
         # if model not in api_dict[source]["models"]:
@@ -216,6 +216,11 @@ class Agent(BaseGPTAgent):
                     base_url=api_dict[source]["base_url"],
                     api_key=api_dict[source]["api_key"],
                 )
+        elif source == "vllm":
+            self.client = OpenAI(
+                base_url=base_url,
+                api_key="empty",
+            )
         print(f"You are using {self.model} from {source}")
         
     @except_retry_dec()
@@ -234,15 +239,10 @@ class Agent(BaseGPTAgent):
             )
         return _completion.choices[0].message.content
     
-    def stream_completion(self, prompt: str, max_completion_tokens: int=512):
+    def stream_completion(self, messages: list, max_completion_tokens: int=512):
         """Stream the chat completion response token by token"""
         stream = self.client.chat.completions.create(
-            messages=[
-                {
-                    "role": "user", 
-                    "content": prompt,
-                }
-            ],
+            messages=messages,
             temperature=self.temperature,
             model=self.model,
             max_tokens=max_completion_tokens,
