@@ -192,7 +192,7 @@ class BaseGPTAgent(ABC):
 
 class Agent(BaseGPTAgent):
     def __init__(
-        self, model, source, api_dict, temperature: float = 1.0):
+        self, model, source, api_dict: dict = None, base_url: str = None, temperature: float = 1.0):
         self.model = model
         self.temperature = temperature
         # if model not in api_dict[source]["models"]:
@@ -210,16 +210,21 @@ class Agent(BaseGPTAgent):
                     # This is the default and can be omitted
                     api_key=api_dict[source]["api_key"],
                 )
-        elif source in ["deepseek", "openrouter"]:
+        elif source in ["deepseek", "deepseek-backup", "openrouter"]:
             self.client = OpenAI(
                     # This is the default and can be omitted
                     base_url=api_dict[source]["base_url"],
                     api_key=api_dict[source]["api_key"],
                 )
+        elif source == "vllm":
+            self.client = OpenAI(
+                base_url=base_url,
+                api_key="empty",
+            )
         print(f"You are using {self.model} from {source}")
         
     @except_retry_dec()
-    def chat_completion(self, prompt: str, max_completion_tokens: int=512) -> str:
+    def chat_completion(self, prompt: str, max_completion_tokens: int=512, stream=False) -> str:
         _completion = self.client.chat.completions.create(
                 messages=[
                     {
@@ -229,11 +234,28 @@ class Agent(BaseGPTAgent):
                 ],
                 temperature=self.temperature,
                 model=self.model,
-                max_tokens=max_completion_tokens
+                max_tokens=max_completion_tokens,
+                stream=stream
             )
         return _completion.choices[0].message.content
     
-    def batch_completion(self, prompts: list, max_completion_tokens=512) -> list:
+    def stream_completion(self, messages: list, max_completion_tokens: int=512):
+        """Stream the chat completion response token by token"""
+        stream = self.client.chat.completions.create(
+            messages=messages,
+            temperature=self.temperature,
+            model=self.model,
+            max_tokens=max_completion_tokens,
+            stream=True
+        )
+        
+        response = ""
+        for chunk in stream:
+            if chunk.choices[0].delta.content is not None:
+                response += chunk.choices[0].delta.content
+                yield chunk.choices[0].delta.content
+
+    def batch_completion(self, prompts: list) -> list:
         print(f"Processing {len(prompts)} prompts in parallel...")
         results = [None] * len(prompts)  # 初始化一个与prompts长度相同的空列表
         
