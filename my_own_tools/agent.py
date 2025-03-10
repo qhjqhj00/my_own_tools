@@ -162,9 +162,9 @@ def except_retry_dec(retry_num: int = 3):
             i = 0
             while True:
                 try:
-                    logger.info("openai agent post...")
+                    # logger.info("openai agent post...")
                     ret = func(*args, **kwargs)
-                    logger.info("openai agent post finished")
+                    # logger.info("openai agent post finished")
                     return ret
                 # error define: https://platform.openai.com/docs/guides/error-codes/python-library-error-types
                 except (
@@ -233,13 +233,13 @@ class Agent(BaseGPTAgent):
             )
         return _completion.choices[0].message.content
     
-    def batch_completion(self, prompts: list) -> list:
+    def batch_completion(self, prompts: list, max_completion_tokens=512) -> list:
         print(f"Processing {len(prompts)} prompts in parallel...")
         results = [None] * len(prompts)  # 初始化一个与prompts长度相同的空列表
         
         # Define a worker function for threading
         def worker(index, prompt):
-            result = self.chat_completion(prompt, max_completion_tokens=2048)
+            result = self.chat_completion(prompt, max_completion_tokens=max_completion_tokens)
             results[index] = result
         
         # Use ThreadPoolExecutor for concurrent requests
