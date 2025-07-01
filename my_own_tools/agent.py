@@ -12,7 +12,7 @@ from openai import AzureOpenAI
 import openai
 import concurrent.futures
 from loguru import logger
-
+import asyncio
 logger = logging.getLogger(__name__)
 
 import json
@@ -210,7 +210,7 @@ class Agent(BaseGPTAgent):
                     # This is the default and can be omitted
                     api_key=api_dict[source]["api_key"],
                 )
-        elif source in ["deepseek", "deepseek-backup", "openrouter"]:
+        elif source in ["deepseek", "openrouter"]:
             self.client = OpenAI(
                     # This is the default and can be omitted
                     base_url=api_dict[source]["base_url"],
@@ -224,7 +224,7 @@ class Agent(BaseGPTAgent):
         print(f"You are using {self.model} from {source}")
         
     @except_retry_dec()
-    def chat_completion(self, prompt: str, max_completion_tokens: int=512, stream=False) -> str:
+    def chat_completion(self, prompt: str, max_completion_tokens: int=512, top_p: float=0.9, stream=False) -> str:
         _completion = self.client.chat.completions.create(
                 messages=[
                     {
@@ -234,6 +234,7 @@ class Agent(BaseGPTAgent):
                 ],
                 temperature=self.temperature,
                 model=self.model,
+                top_p=top_p,
                 max_tokens=max_completion_tokens,
                 stream=stream
             )
@@ -255,13 +256,13 @@ class Agent(BaseGPTAgent):
                 response += chunk.choices[0].delta.content
                 yield chunk.choices[0].delta.content
 
-    def batch_completion(self, prompts: list) -> list:
+    def batch_completion(self, prompts: list, max_completion_tokens: int=512, top_p: float=0.9) -> list:
         print(f"Processing {len(prompts)} prompts in parallel...")
         results = [None] * len(prompts)  # 初始化一个与prompts长度相同的空列表
         
         # Define a worker function for threading
         def worker(index, prompt):
-            result = self.chat_completion(prompt, max_completion_tokens=max_completion_tokens)
+            result = self.chat_completion(prompt, max_completion_tokens=max_completion_tokens, top_p=top_p)
             results[index] = result
         
         # Use ThreadPoolExecutor for concurrent requests
